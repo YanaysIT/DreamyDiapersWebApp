@@ -1,0 +1,45 @@
+﻿<EditForm Model="@Address" FormName="ShippingAddres" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+
+    <label for="Line1" class="form-label"><strong>Line 1</strong></label>
+    <InputText id="Line1" class="form-control mb-3" @bind-Value="Address.Line1"></InputText>
+    <ValidationMessage For="()=>Address.Line1" />
+
+    <label for="Line2" class="form-label"><strong>Line 2</strong></label>
+    <InputText id="Line2" class="form-control mb-2" @bind-Value="Address.Line2"></InputText>
+    <ValidationMessage For="()=>Address.Line2" />
+
+    <div class="row">
+        <div class="col">
+            <label for="City" class="form-label"><strong>City</strong></label>
+            <InputText id="City" class="form-control mb-3" @bind-Value="Address.City"></InputText>
+            <ValidationMessage For="()=>Address.City" />
+        </div>
+        <div class="col">
+            <label for="PostCode" class="form-label"><strong>Post Code</strong></label>
+            <InputText id="PostCode" class="form-control mb-3" @bind-Value="Address.PostCode"></InputText>
+            <ValidationMessage For="()=>Address.PostCode" />
+        </div>
+    </div>
+
+    <label for="Country" class="form-label"><strong>Country</strong></label>
+    <InputText id="Country" class="form-control mb-3" @bind-Value="Address.Country"></InputText>
+    <ValidationMessage For="()=>Address.Country" />
+    
+    <button type="submit" class="btn btn-info my-3">Place Order</button>
+</EditForm>
+
+@code {
+    [Parameter]
+    public Address Address { get; set; } = new();
+    [Parameter]
+    public EventCallback<bool> OnValidSubmit { get; set; }
+
+    async Task HandleValidSubmit()
+    {
+        if (OnValidSubmit.HasDelegate)
+        {
+            await OnValidSubmit.InvokeAsync(true);
+        }
+    }
+}

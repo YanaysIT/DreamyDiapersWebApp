@@ -1,0 +1,16 @@
+﻿global using System.ComponentModel.DataAnnotations;
+global using System.ComponentModel.DataAnnotations.Schema;
+global using System.Text.Json.Serialization;
+global using Microsoft.AspNetCore.Authorization;
+global using Microsoft.AspNetCore.Identity;
+global using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+global using Microsoft.EntityFrameworkCore;
+global using AutoMapper;
+global using DreamyDiapersWebApp.Core.Entities;
+global using DreamyDiapersWebApp.Core.Interfaces;
+global using DreamyDiapersWebApp.Core.DTOs;
+global using DreamyDiapersWebApp.Core.Enums;
+global using DreamyDiapersWebApp.Core.Classes;
+global using DreamyDiapersWebApp.Data;
+global using DreamyDiapersWebApp.Services;
+global using DreamyDiapersWebApp.Components.Pages;

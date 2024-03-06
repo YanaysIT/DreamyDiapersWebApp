@@ -1,0 +1,156 @@
+﻿@page "/shoppingCart"
+@inject CartService cartService
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider StateProvider
+@inject ExchangeRateContainer Exchange
+@rendermode InteractiveServer
+@attribute [Authorize]
+
+<PageTitle>Shopping Cart</PageTitle>
+
+<h2 class="mb-3">Shopping Cart</h2>
+
+
+<hr class="border border-light border-2 opacity-75 mb-3">
+
+@if (!isLoaded)
+{
+    <div class="mt-lg-auto">
+        <strong role="status">Loading...</strong>
+        <div class="spinner-border text-primary ms-2" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (user is null)
+{
+    <h5 class="mt-5">No logged-in user found.</h5>
+}
+else if (!cart.Any() || cart.Sum(c=> c.Quantity).Equals(0))
+{
+     <h5 class="mt-5">Your shopping cart is empty.</h5>
+     <button class="btn btn-sm btn-secondary mt-5" @onclick="NavigateToItems">
+        Back to Shopping
+     </button>
+}
+else
+{
+    <div class="list-group">
+        @foreach (var cartItem in cart)
+        {
+            if (cartItem.Quantity > 0)
+            {
+                <div class="list-group-item list-group-item-action">
+                   <div class="d-flex justify-content-between align-items-start">
+                       <h5 class="mb-2">@cartItem.Item.Name</h5>
+                       <div class="d-flex align-items-center">
+                           <span>X    </span>
+                           <button class="btn btn-sm-secondary" @onclick="async () => 
+                               await cartService.UpdateCartAsync(cartItem, cartItem.Quantity-1)">
+                               -  
+                           </button>
+                           <span>@cartItem.Quantity</span>
+                           <button class="btn btn-sm-secondary" @onclick="async () => 
+                               await cartService.UpdateCartAsync(cartItem, cartItem.Quantity+1)">
+                               +  
+                           </button>
+                       </div>
+                   </div>
+                   <div class="d-flex justify-content-between">
+                       <img class="img-cart p-2 btn" src="@cartItem.Item.Url" alt="@cartItem.Item.Name" 
+                           @onclick="() => NavigateToItem(cartItem.ItemId)"/>
+                       <span class="text-body-secondary">
+                              @($"{cartItem.Item.Price * Exchange.Rate:N2} {Exchange.ToCurrency}")
+                              <br />
+                              @if (cartItem.Item.OriginalPrice > cartItem.Item.Price)
+                              {
+                                  <small class="text-decoration-line-through text-danger">
+                                       @($"{cartItem.Item.OriginalPrice * Exchange.Rate :N2} {Exchange.ToCurrency}")
+                                  </small>
+                              }
+                           </span>
+                   </div>
+                   <div class="d-flex justify-content-between mb-1">
+                       <span>
+                           <strong>Subtotal:</strong> 
+                           @($"{cartItem.Quantity * cartItem.Item.Price * Exchange.Rate:N2} {Exchange.ToCurrency}")
+                       </span>
+                       <button class="btn btn-outline-secondary border-0 oi oi-trash ms-4" @onclick="async () => 
+                            await cartService.UpdateCartAsync(cartItem, 0)">
+                       </button>
+                   </div>
+                </div>
+            }
+        }
+        <div class="d-flex justify-content-between align-items-bottom p-2 position-sticky bottom-0 bg-light border">
+            <div class="d-block ms-2">
+                <p class="mb-0">
+                    <strong>Total: </strong>@CalculateTotal() @Exchange.ToCurrency
+                </p class="mb-0">
+                <p>
+                    <strong>Discount: </strong>@(CalculateOriginalTotal() - CalculateTotal()) @Exchange.ToCurrency
+                </p>
+            </div>
+            <div>
+                <button class="btn btn-sm btn-info me-1 @(CalculateTotal().Equals(0) ? "disabled" :"")" @onclick="() => NavigateToForm()">
+                    Checkout(@CalculateTotalQuantity())
+                </button>
+                <button class="btn btn-sm btn-secondary" @onclick="NavigateToItems">
+                    Back to Shopping
+                </button>
+            </div>
+        </div>
+    </div>
+}
+    
+    
+
+@code {
+    public List<CartItem> cart { get; set; } = new();
+    bool isLoaded = false;
+    ApplicationUser? user;
+    AuthenticationState? authenticationState;
+
+    protected override async Task OnInitializedAsync()
+    {
+        authenticationState = await StateProvider.GetAuthenticationStateAsync();
+        user = await UserManager.GetUserAsync(authenticationState.User);
+        if (user is null)
+        {
+            isLoaded = true;
+            return;
+        }
+        cart = await cartService.GetCartAsync(user.Id);
+        isLoaded = true;
+    }  
+
+    decimal CalculateTotal()
+    {
+        var total = cart.Where(c => c.Item.Stock > 0).Sum(i => i.Quantity * i.Item.Price) * Exchange.Rate;
+        return Math.Round(total, 2);
+    }
+    decimal CalculateOriginalTotal()
+    {
+        var originalTotal = cart.Where(c => c.Item.Stock > 0)
+                                .Sum(i => i.Quantity * i.Item.OriginalPrice) * Exchange.Rate;
+        return Math.Round(originalTotal, 2);
+        
+    }
+
+    int CalculateTotalQuantity() => cart.Where(c => c.Item.Stock > 0).Sum(c => c.Quantity);
+
+    void NavigateToForm()
+    {
+        NavigationManager.NavigateTo("/address");
+    }
+
+    void NavigateToItems()
+    {
+        NavigationManager.NavigateTo("/items");
+    }
+
+    void NavigateToItem(int id)
+    {
+        NavigationManager.NavigateTo($"/items/{id}");
+    }
+}

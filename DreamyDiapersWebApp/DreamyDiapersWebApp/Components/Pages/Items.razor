@@ -1,0 +1,125 @@
+﻿@page "/items"
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<ApplicationUser> UserManager
+@inject ItemsService itemsService
+@inject CartService cartService
+@inject ExchangeRateContainer Exchange
+@rendermode InteractiveServer
+@attribute [Authorize]
+@attribute [StreamRendering]
+
+<div class="d-flex justify-content-between">
+    <div>
+        <h2 class="mb-3">Products</h2>
+        <h5>Explore our unique products!</h5>
+    </div>
+    <div>
+        <label for="currency" class="form-label text-secondary">Currency</label>
+        @if (exchangeRateService is not null)
+        {
+            <select class="form-select" id="currency" value="@Exchange.ToCurrency" @onchange="OnChange">
+                @if (currencies != null)
+                {
+                    @foreach (var currency in currencies)
+                    {
+                        <option value="@(Enum.Parse<Currency>(currency))">@currency</option>
+                    }
+                }
+            </select>
+        }
+    </div>
+</div>
+<hr class="border border-light border-2 opacity-75 mb-3">
+
+@if (items is null || exchangeRateService is null)
+{
+    <div class="mt-lg-auto">
+        <strong role="status">Loading...</strong>
+        <div class="spinner-border text-primary ms-2" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (!items.Any())
+{
+    <h2>No products found.</h2>
+}
+else if (user is null)
+{
+    <h2>No logged-in user found.</h2>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-4 g-4">
+        @foreach (var item in items)
+        {
+            <div class="col mb-3 btn">
+                <div class="card card-home h-100 p-0 @(item.Stock.Equals(0) ? "sold-out" : "")">
+                    <div class="card-img-container">
+                        @if (item.OriginalPrice > item.Price && !item.Stock.Equals(0))
+                        {
+                            <div class="sale-stamp">Sale</div>
+                        }
+                        <img src="@item.Url" alt=@item.Name class="card-img-bottom img-hover btn p-4"
+                             @onclick="()=>NavigateToItem(item.Id)">
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title mt-auto mb-2">@item.Name</h5>
+                    </div>
+                    <div class="card-footer d-flex justify-content-end align-items-baseline">
+                        <span>
+                            @($"{(item.Price * Exchange.Rate):N2} {Exchange.ToCurrency}")
+                        </span>
+                        @if (item.Price < item.OriginalPrice)
+                        {
+                            <small class="text-danger text-decoration-line-through ms-2">
+                                @($"{(item.OriginalPrice * Exchange.Rate):N2} {Exchange.ToCurrency}")
+                            </small>
+                        }
+                    </div>
+                        <button class="btn btn-info"
+                                @onclick="async () => await cartService.AddToCartAsync(item.Id, quantity, user.Id, item.Stock)">
+                            Add To Cart
+                        </button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+
+@code {
+
+    IEnumerable<ItemSummaryDto>? items = null;
+    string[]? currencies;
+    ApplicationUser? user;
+    int quantity = 1;
+    Currency toCurrency = Currency.EUR;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            items = await itemsService.GetItemsAsync();
+            currencies = exchangeRateService.GetCurrencyNames();
+            var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+            user = await UserManager.GetUserAsync(authenticationState.User);
+            if (user is not null)
+            {
+                await cartService.CartChanged(user.Id);
+            }
+            Exchange ??= await exchangeRateService.GetExchangeRateAsync(toCurrency);
+            StateHasChanged();
+        }
+    }
+
+    void NavigateToItem(int id) => NavigationManager.NavigateTo($"items/{id}/");
+
+    async Task OnChange(ChangeEventArgs args)
+    {
+        Enum.TryParse(args?.Value?.ToString(), out toCurrency);
+        Exchange = await exchangeRateService.GetExchangeRateAsync(toCurrency);
+        StateHasChanged();
+    }
+}
+

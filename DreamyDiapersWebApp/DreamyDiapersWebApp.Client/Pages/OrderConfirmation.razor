@@ -1,0 +1,92 @@
+﻿@page "/orderdetails"
+@using System.Security.Claims
+@using DreamyDiapersWebApp.Client.DTOs
+@using Microsoft.AspNetCore.Authorization
+@inject Blazored.SessionStorage.ISessionStorageService sessionStorage
+@inject AuthenticationStateProvider StateProvider
+@attribute [Authorize]
+@rendermode InteractiveWebAssembly
+
+<PageTitle>Order Details</PageTitle>
+
+<PageTitle>Order Details</PageTitle>
+
+@if (!IsLoaded)
+{
+    <div class="mt-lg-auto">
+        <strong role="status">Processing...</strong>
+        <div class="spinner-border text-primary ms-2" role="status">
+            <span class="visually-hidden">Processing...</span>
+        </div>
+    </div>
+}
+else
+{
+    <h2>@orderSummary.Message</h2>
+
+    <hr class="border border-light border-2 opacity-75 mb-3">
+    @if (orderSummary.CreatedOrder is not null)
+    {
+        <div class="card mb-3 mt-3">
+            <div class="card-header bg-yellow text-white">
+                <h5 class="mb-0">Order Details</h5>
+            </div>
+            <div class="card-body">
+                @foreach (var item in @orderSummary.CreatedOrder.OrderItems)
+                {
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <img src="@item.Url" class="img-fluid rounded order" alt="@item.Name">
+                        </div>
+                        <div class="col-md-8">
+                            <h6 class="card-title">@item.Name</h6>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    @item.Price.ToString("N2") <small>@item.Currency</small> x @item.Quantity
+                                </small>
+                            </p>
+                            <p class="card-text text-dark">
+                                @item.SubTotal.ToString("N2") <small>@item.Currency</small>
+                            </p>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="card-footer border">
+                <p><strong>Shipping Address:</strong> @orderSummary.CreatedOrder.Address</p>
+                <p><strong>Email:</strong> @orderSummary.CreatedOrder.Email</p>
+                <p>
+                    <strong>Total:</strong> @orderSummary.CreatedOrder.Total.ToString("N2") <small>@orderSummary.CreatedOrder.OrderItems.First().Currency</small>
+                </p>
+            </div>
+        </div>
+
+        <h5 class="mt-5">Thank you for shopping with us!</h5>
+
+        <button class="btn btn-secondary mt-4" @onclick="NavigateToItems">
+            Back to Shopping
+        </button>
+    }
+}
+
+@code{
+    bool IsLoaded;
+    AuthenticationState? authenticationState;
+    OrderSummaryDto orderSummary = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            authenticationState = await StateProvider.GetAuthenticationStateAsync();
+            var userId = authenticationState.User.Claims.Where(c => c.Type.Equals(ClaimTypes.NameIdentifier)).First().Value;
+            orderSummary = await sessionStorage.GetItemAsync<OrderSummaryDto>(userId);
+            IsLoaded = true;
+            StateHasChanged();
+        }
+    }
+    void NavigateToItems()
+    {
+        NavigationManager.NavigateTo("/items");
+    }
+}

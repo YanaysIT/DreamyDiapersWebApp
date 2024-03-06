@@ -1,0 +1,94 @@
+﻿@page "/items/{id:int?}"
+@inject ItemsService itemsService
+@inject CartService cartService
+@inject ExchangeRateContainer Exchange
+@attribute [Authorize]
+@rendermode InteractiveServer
+﻿
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider StateProvider
+
+@attribute [Authorize]
+
+
+<h2 class="mb-3">Product Details</h2>
+
+<hr class="border border-light border-2 opacity-75 mb-3">
+
+<div class="container">
+    @if (!isLoaded)
+    {
+        <div class="mt-lg-auto">
+            <strong role="status">Loading...</strong>
+            <div class="spinner-border text-primary ms-2" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+    else if (item is null)
+    {
+        <h2>Product found.</h2>
+    }
+    else if (user is null)
+    {
+        <h2>No logged-in user found.</h2>
+    }
+    else
+    {
+        <div class="card @(item.Stock.Equals(0) ? "sold-out" : "")">
+            <div class="card-img-container">
+                @if (item.OriginalPrice > item.Price && !item.Stock.Equals(0))
+                {
+                    <div class="sale-stamp">Sale</div>
+                }
+                <img src="@item.Url" alt=@item.Name class="card-details mx-auto pt-5">
+            </div>
+            <div class="card-body d-flex flex-column">
+                <h4 class="card-title mt-auto mb-3">@item.Name</h4>
+                <p class="card-text">@item.Description</p>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-end align-items-baseline">
+                    <span class="text-body-secondary">
+                        @($"{(item.Price * Exchange.Rate):N2} {Exchange.ToCurrency}")
+                    </span>
+                    @if (item.Price < item.OriginalPrice)
+                    {
+                        <small class="text-body-secondary text-danger text-decoration-line-through ms-2">
+                            @($"{(item.OriginalPrice * Exchange.Rate):N2} {Exchange.ToCurrency}")
+                        </small>
+                    }
+                </div>
+                <div class="d-flex justify-content-end text-success">
+                    @(item.Stock > 0 ? $"In stock" : "Sold out")
+                </div>
+            </div>
+            <div class="input-group justify-content-end position-sticky bottom-0 border border-top-0 bg-light">
+                <input type="number" min="1" max=@(item.Stock) class="border border-light-subtle" id=@($"quantity{item.Id}")
+                       @bind=@quantityToAdd onkeydown="return false" />
+                <button class="btn btn-info  @(item.Stock.Equals(0) ? "disabled" : "")"
+                        @onclick="async () => await cartService.AddToCartAsync(item.Id, quantityToAdd, user.Id, item.Stock)">
+                    Add to cart
+                </button>
+            </div>      
+        </div>
+    }
+</div>
+
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    ApplicationUser? user;
+    ItemDetailsDto? item;
+    bool isLoaded = false;
+    int quantityToAdd = 1;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        item = await itemsService.GetItemAsync(Id);
+        var authenticationState = await StateProvider.GetAuthenticationStateAsync();
+        user = await UserManager.GetUserAsync(authenticationState.User);
+        isLoaded = true;
+    }
+}

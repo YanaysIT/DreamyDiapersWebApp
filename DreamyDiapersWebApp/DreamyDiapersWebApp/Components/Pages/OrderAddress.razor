@@ -1,0 +1,58 @@
+﻿@page "/address"
+@inject CartService cartService
+@inject ItemsService itemsService
+@inject OrderService orderService
+@inject UserManager<ApplicationUser> UserManager
+@inject AuthenticationStateProvider StateProvider
+@inject ExchangeRateContainer Exchange
+@inject Blazored.SessionStorage.ISessionStorageService sessionStorage
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+<PageTitle>Order Address</PageTitle>
+
+<h2 class="mb-3">Specify Your Delivery Address</h2>
+
+<hr class="border border-light border-2 opacity-75 mb-3"> 
+
+@if (!isLoaded)
+{
+    <div class="mt-lg-auto">
+        <strong role="status">Loading...</strong>
+        <div class="spinner-border text-primary ms-2" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else if (user is null)
+{
+    <h5 class="mt-5">Failed to retrieve logged-in user.</h5>
+}
+else
+{
+    <div class="form-address mt-5">
+        <AddressForm Address="@Address" OnValidSubmit="PlaceOrder" />
+    </div>
+
+}
+
+@code {
+    ApplicationUser? user;
+    Address Address { get; set; } = new();
+    bool isLoaded;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authenticationState = await StateProvider.GetAuthenticationStateAsync();
+        user = await UserManager.GetUserAsync(authenticationState.User);
+        isLoaded = true;
+    }
+
+    async Task PlaceOrder()
+    {
+        var orderSummary = await orderService.PlaceOrderAsync(user!, Address, Exchange);
+        await sessionStorage.SetItemAsync(user!.Id, orderSummary);
+        StateHasChanged();
+        NavigationManager.NavigateTo("/orderdetails");
+    }
+}
